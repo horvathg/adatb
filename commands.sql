@@ -224,15 +224,52 @@ FROM panel1
 WHERE adagszam IN (SELECT adagszam FROM adagok WHERE adagido > 100);
 
 -- JOIN
-SELECT p1.time, p1.value, p1.adagszam
-FROM panel1 p1
-WHERE p1.time = (
-    SELECT MAX(p2.time)
-    FROM panel1 p2
-    WHERE p2.adagszam = p1.adagszam
+-- Minden adag kezdeti es veg meres idpontja a meresekkel egyutt az 1. panelrol
+SELECT a.adagszam, a.kezdet, a.vege, p1.time, p1.value
+FROM adagok a
+JOIN panel1 p1 ON a.adagszam = p1.adagszam
+ORDER BY a.adagszam, p1.time;
+
+-- Azon adagok listaja, aminel nincs meresi ertek a panelekrol
+SELECT a.adagszam
+FROM adagok a
+LEFT JOIN panel1 p1 ON a.adagszam = p1.adagszam
+LEFT JOIN panel2 p2 ON a.adagszam = p2.adagszam
+WHERE p1.adagszam IS NULL AND p2.adagszam IS NULL
+ORDER BY a.adagszam;
+-- Csak 13-28 adagokrol van meres
+
+-- UNION & Allekerdezes
+-- Minden meres megjelenitese a panelekrol
+SELECT "time", "value", "adagszam", 'panel1' AS panel
+FROM panel1
+UNION ALL
+SELECT "time", "value", "adagszam", 'panel2' AS panel
+FROM panel2
+ORDER BY "time";
+-- Latjuk az osszes merest
+
+-- Adagonkenti homerseklet atlag kiszamitas allekerdezessel es unionnal
+SELECT "adagszam", AVG("value") AS average_value
+FROM (
+  SELECT "value", "adagszam" FROM panel1
+  UNION ALL
+  SELECT "value", "adagszam" FROM panel2
+) AS combined_panels
+GROUP BY "adagszam"
+ORDER BY "adagszam";
+
+-- INSERT + allekerdezesek
+-- Adagonkenti homerseklet atlag kiszamitas es tablaba illesztes
+CREATE TABLE results_avg_measurements (
+    adagszam INTEGER PRIMARY KEY,
+    avg_panel1 REAL,
+    avg_panel2 REAL
 );
+INSERT INTO results_avg_measurements (adagszam, avg_panel1, avg_panel2)
+SELECT a.adagszam,
+       (SELECT AVG(value) FROM panel1 WHERE adagszam = a.adagszam) AS avg_panel1,
+       (SELECT AVG(value) FROM panel2 WHERE adagszam = a.adagszam) AS avg_panel2
+FROM adagok a;
 
--- UNION
-
--- INSERT + elozo lekerdezesek
 
