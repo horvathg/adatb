@@ -95,10 +95,37 @@ inconsistent_rows = hutopanelek_df[~consistent_rows]
 print("Inconsistent rows:")
 print(inconsistent_rows)
 
-### Betoltes adatbazisba
-# cur = connection.cursor()
-# cur.execute('DROP TABLE IF EXISTS adagok;')
+print("-------------------------------------------------")
+adagok_df.drop(columns=['Kezdet_DÁTUM','Kezdet_IDŐ','Vége_DÁTUM', 'Vége_IDŐ','ADAGKÖZI_IDŐ', 'Calculated_Adagido','Match'], inplace=True)
+adagok_df = adagok_df.astype({'ADAGSZÁM': int})
 
-# adagok_df.to_sql(name='adagok', con=connection)
+## Betoltes adatbazisba
+cur = connection.cursor()
+cur.execute('DROP TABLE IF EXISTS adagok;')
 
-# cur.execute('SELECT * from adagok;')
+adagok_df.to_sql(name='adagok', con=connection, index=False)
+
+cur.execute('SELECT * from adagok limit 1;')
+print(cur.fetchall())
+
+panel_dataframes = {}
+for i, time_col in enumerate(time_cols):
+    # Extract Value column corresponding to this Time column
+    value_col = time_col.replace("Time", "ValueY")
+
+    # Select only Time and Value columns for each panel
+    panel_df = hutopanelek_df[[time_col, value_col, 'ADAGSZÁM']].copy()
+
+    # Rename columns to 'time' and 'value' for uniformity
+    panel_df.columns = ['time', 'value', 'adagszam']
+
+    # Store in dictionary with a key like 'panel1', 'panel2', etc.
+    panel_dataframes[f"panel{i+1}"] = panel_df
+
+for panel_name, df in panel_dataframes.items():
+    df.to_sql(panel_name, connection, if_exists='replace', index=False)
+
+cur.execute("SELECT * from panel1 limit 1;")
+print(cur.fetchall())
+cur.execute("SELECT sql from sqlite_schema where name = 'panel1'")
+print(cur.fetchall())
